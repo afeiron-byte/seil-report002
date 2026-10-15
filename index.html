@@ -2,8 +2,15 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>학교 주변 복합 환경 오염도 탐구활동 보고서</title>
+  <title>에코 마스터 환경 탐구활동 보고서</title>
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Leaflet 지도 라이브러리 -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
   <style>
     body { font-family: 'Pretendard', sans-serif; background-color: #f0fdf4; }
     textarea { resize: none; overflow: hidden; line-height: 1.6; }
@@ -14,32 +21,29 @@
     .question-block { margin-bottom: 24px; padding: 20px; background-color: #ffffff; border-radius: 8px; border: 1px solid #d1fae5; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
     .question-title { font-weight: 700; color: #047857; margin-bottom: 8px; font-size: 1rem; line-height: 1.5; }
     .help-text { font-size: 0.85rem; color: #4b5563; margin-bottom: 12px; line-height: 1.4; }
-    .sensor-tag { display: inline-block; background-color: #ecfdf5; color: #065f46; font-size: 0.75rem; font-weight: 600; padding: 2px 8px; border-radius: 4px; border: 1px solid #a7f3d0; margin-right: 4px; }
     
-    /* 인쇄 전용 헤더 기본 숨김 */
+    #map { height: 380px; width: 100%; border-radius: 8px; z-index: 10; }
     .print-header { display: none; }
 
-    /* ★ A4 출력 및 PDF 저장 전용 CSS ★ */
+    /* ★ A4 규격 최적화 인쇄 CSS ★ */
     @media print {
       @page { size: A4; margin: 15mm; }
       body { background: white !important; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      
       body > *:not(#student-screen) { display: none !important; }
       #student-screen { display: block !important; padding: 0 !important; min-height: auto !important; }
-      
       .no-print, script, style { display: none !important; }
       .card { box-shadow: none !important; border: none !important; padding: 0 !important; margin: 0 !important; }
       
-      /* 인쇄 시 모든 탭 순차적 출력 */
       .tab-content { display: block !important; margin-bottom: 24px; page-break-inside: avoid; }
       .tab-content h2 { background-color: #e6f4ea !important; padding: 8px 12px !important; border-left: 5px solid #059669 !important; margin-bottom: 14px !important; font-size: 12pt !important; color: #064e3b !important; }
-      
-      textarea { height: auto !important; border: 1px solid #9ca3af !important; padding: 10px !important; font-size: 9.5pt !important; background: transparent !important; width: 100% !important; }
+      textarea, input[type="text"] { height: auto !important; border: 1px solid #9ca3af !important; padding: 8px !important; font-size: 9.5pt !important; background: transparent !important; width: 100% !important; }
       .question-block { background-color: transparent !important; border: none !important; padding: 0 !important; margin-bottom: 18px !important; page-break-inside: avoid; }
       .question-title { color: #111827 !important; font-size: 10.5pt !important; }
       .help-text { display: none !important; }
       
-      img { max-width: 100% !important; height: auto !important; max-height: 260px; object-fit: contain; margin-top: 8px; border: 1px solid #d1d5db !important; }
+      img { max-width: 100% !important; height: auto !important; max-height: 240px; object-fit: contain; margin-top: 8px; border: 1px solid #d1d5db !important; }
+      #map { height: 300px !important; border: 1px solid #9ca3af !important; page-break-inside: avoid; }
+      .csv-table-wrap { max-height: none !important; overflow: visible !important; }
 
       .print-header { 
         display: flex !important; 
@@ -55,7 +59,9 @@
 <body class="text-gray-800">
 
 <div id="loading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-  <div class="text-white text-xl font-bold">처리 중...</div>
+  <div class="text-white text-xl font-bold flex items-center gap-2">
+    <i data-lucide="loader-2" class="w-6 h-6 animate-spin"></i> 데이터 처리 중...
+  </div>
 </div>
 
 <!-- 비밀번호 변경 모달 -->
@@ -78,11 +84,14 @@
   </div>
 </div>
 
-<!-- 단일 로그인 화면 -->
+<!-- 로그인 화면 -->
 <div id="login-screen" class="min-h-screen flex items-center justify-center">
   <div class="bg-white p-10 rounded-xl shadow-xl w-[420px] border-t-8 border-emerald-600">
-    <h1 class="text-2xl font-extrabold text-center mb-2 text-emerald-900">🌐 환경 탐구활동 보고서</h1>
-    <p class="text-center text-sm text-gray-500 mb-8">아두이노 복합 센서 기반 학교 주변 환경 조사</p>
+    <div class="flex justify-center mb-3 text-emerald-600">
+      <i data-lucide="trees" class="w-12 h-12"></i>
+    </div>
+    <h1 class="text-2xl font-extrabold text-center mb-1 text-emerald-950">에코 마스터 탐구 보고서</h1>
+    <p class="text-center text-xs text-gray-500 mb-8">학교 주변 복합 환경 오염도 측정 탐구활동</p>
     
     <div class="mb-5">
       <label class="block text-sm font-bold mb-2 text-gray-700">학번 (교사는 ID)</label>
@@ -100,24 +109,28 @@
 <div id="student-screen" class="hidden min-h-screen pt-6 pb-12">
   <div class="max-w-5xl mx-auto bg-white shadow-lg rounded-xl border border-gray-200 overflow-hidden card relative pb-20">
     
-    <!-- 인쇄 전용 헤더 -->
+    <!-- 인쇄 헤더 -->
     <div class="print-header">
       <div>
-        <div class="text-xl font-bold text-gray-900">아두이노 기반 학교 주변 복합 오염 물질 탐구 보고서</div>
-        <div class="text-xs text-gray-500">복합 공기질(AM1008W-k) · 수질(pH) · 방수 수온 · 대기 온습도 · GPS 센서 활용</div>
+        <div class="text-xl font-bold text-gray-900">에코 마스터 복합 환경 오염도 탐구활동 보고서</div>
+        <div class="text-xs text-gray-500">복합 공기질 · 수질(pH) · 방수 수온 · 온습도 · GPS 센서 기반 분석</div>
       </div>
       <div class="text-base text-right">학번: <span id="print_sid" class="font-bold"></span> &nbsp;|&nbsp; 이름: <span id="print_sname" class="font-bold"></span></div>
     </div>
 
-    <!-- 웹 화면용 헤더 -->
+    <!-- 웹 네비게이션 헤더 -->
     <div class="flex justify-between items-center bg-emerald-800 text-white p-6 no-print">
       <div>
-        <h1 class="text-2xl font-extrabold">학교 주변 복합 환경 오염도 탐구활동 보고서</h1>
-        <p class="text-xs text-emerald-200 mt-1">센서: 복합 공기질(AM1008W-k), 수질 pH, 방수 수온, 대기 온습도, GPS 위치 모듈</p>
+        <h1 class="text-2xl font-extrabold flex items-center gap-2">
+          <i data-lucide="leaf" class="w-6 h-6"></i> 에코 마스터 탐구활동 보고서
+        </h1>
+        <p class="text-xs text-emerald-200 mt-1">우리 학교 주변 대기 및 수질 환경 오염도 비교 탐구</p>
       </div>
       <div class="flex items-center gap-3">
-        <span class="font-bold"><span id="display_sid"></span> <span id="display_sname"></span></span>
-        <button id="pwChangeBtn" onclick="openPwModal(false)" class="student-only bg-yellow-500 hover:bg-yellow-600 px-3 py-2 rounded-md font-bold text-sm transition text-white ml-2">비밀번호 변경</button>
+        <span class="font-bold bg-emerald-900/50 px-3 py-1.5 rounded-lg border border-emerald-700">
+          <span id="display_sid"></span> <span id="display_sname"></span>
+        </span>
+        <button id="pwChangeBtn" onclick="openPwModal(false)" class="student-only bg-yellow-500 hover:bg-yellow-600 px-3 py-2 rounded-md font-bold text-sm transition text-white">비밀번호 변경</button>
         <button id="saveBtn" onclick="saveData()" class="student-only bg-emerald-500 hover:bg-emerald-600 px-5 py-2 rounded-md font-bold transition shadow">저장하기</button>
         <button id="printBtn" onclick="window.print()" class="hidden bg-indigo-600 hover:bg-indigo-700 px-5 py-2 rounded-md font-bold transition shadow">인쇄(PDF)</button>
         <button id="backBtn" onclick="showTeacherDashboard()" class="hidden bg-gray-500 hover:bg-gray-600 px-5 py-2 rounded-md font-bold transition">목록으로</button>
@@ -125,22 +138,23 @@
       </div>
     </div>
 
-    <!-- 탭 네비게이션 -->
+    <!-- 탭 메뉴 -->
     <div class="flex border-b border-gray-200 bg-gray-50 text-sm no-print">
-      <button onclick="switchTab('tab1')" class="tab-btn active flex-1 py-4 text-gray-600 hover:text-emerald-700">1. 장치 제작 및 탐구 설계</button>
-      <button onclick="switchTab('tab2')" class="tab-btn flex-1 py-4 text-gray-600 hover:text-emerald-700">2. 현장 측정 및 데이터 수집</button>
-      <button onclick="switchTab('tab3')" class="tab-btn flex-1 py-4 text-gray-600 hover:text-emerald-700">3. 공간 시각화 및 결과 분석</button>
-      <button onclick="switchTab('tab4')" class="tab-btn flex-1 py-4 text-gray-600 hover:text-emerald-700">4. 환경 개선 제안 및 평가</button>
+      <button onclick="switchTab('tab1')" id="btn-tab1" class="tab-btn active flex-1 py-4 text-gray-600 hover:text-emerald-700">1. 장치 제작 및 탐구 설계</button>
+      <button onclick="switchTab('tab2')" id="btn-tab2" class="tab-btn flex-1 py-4 text-gray-600 hover:text-emerald-700">2. 현장 관측 및 데이터 수집(CSV)</button>
+      <button onclick="switchTab('tab3')" id="btn-tab3" class="tab-btn flex-1 py-4 text-gray-600 hover:text-emerald-700">3. 공간 환경 지도 및 결과 분석</button>
+      <button onclick="switchTab('tab4')" id="btn-tab4" class="tab-btn flex-1 py-4 text-gray-600 hover:text-emerald-700">4. 환경 개선 제안 및 성찰</button>
     </div>
 
     <div class="p-8 bg-gray-50/40">
-      <!-- 탭 1 -->
+      
+      <!-- ==================== 탭 1 ==================== -->
       <div id="tab1" class="tab-content active">
         <h2 class="text-xl font-bold text-emerald-900 mb-6 border-l-4 border-emerald-600 pl-3">1. 장치 제작 및 탐구 설계</h2>
         
         <div class="question-block">
-          <div class="question-title">1-1. 모둠에서 제작한 '아두이노 복합 환경 측정 장치'의 전체 사진을 첨부하세요.</div>
-          <p class="help-text">아두이노 보드, 센서류(공기질, 수질, 방수 수온, 온습도), GPS 모듈, 전원 공급 장치 연결 상태가 잘 보이도록 촬영하세요.</p>
+          <div class="question-title">1-1. 모둠이 제작한 '아두이노 복합 환경 측정 장치'의 전체 사진을 첨부하세요.</div>
+          <p class="help-text">아두이노 보드와 5종 센서(복합 공기질, 수질 pH, 방수 수온, 온습도, GPS)가 연결된 모습을 촬영하세요.</p>
           <div class="mb-4 student-only">
             <input type="file" id="q1_file" accept="image/*" class="border p-2 w-full rounded bg-white cursor-pointer">
           </div>
@@ -148,78 +162,172 @@
         </div>
 
         <div class="question-block">
-          <div class="question-title">1-2. 장치 구성 및 센서 역할 설명</div>
-          <div class="mb-2">
-            <span class="sensor-tag">AM1008W-k</span>
-            <span class="sensor-tag">수질 pH</span>
-            <span class="sensor-tag">방수 수온</span>
-            <span class="sensor-tag">대기 온습도</span>
-            <span class="sensor-tag">GPS 모듈</span>
-          </div>
-          <p class="help-text">각 센서가 측정하는 물리량/화학량(PM, CO₂, VOC, pH, 수온, 대기 온·습도, 위치 좌표)과 모둠 장치의 하드웨어 설계 특징을 작성하세요.</p>
-          <textarea id="q1_1_text" class="w-full border border-gray-300 rounded-md p-4 min-h-[140px] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200" placeholder="• 센서별 측정 항목 및 역할:&#10;• 모둠 장치 하우징 및 휴대/방수 설계 특징:"></textarea>
+          <div class="question-title">1-2. 우리 학교 및 주변 환경에서 오염도를 측정할 장소 3곳을 선정하고, 토론을 통해 정한 이유를 서술하세요.</div>
+          <p class="help-text">오염 발생이 우려되는 실내외 장소(예: 도로변, 조리실, 체육관 등)나 수질 측정 장소(연못, 배수로, 하천 등)를 고르게 선정하세요.</p>
+          <textarea id="q1_1_text" class="w-full border border-gray-300 rounded-md p-4 min-h-[160px] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200" placeholder="• 선정 장소 1 : &#10;  - 토론 내용 및 선정 이유 : &#10;&#10;• 선정 장소 2 : &#10;  - 토론 내용 및 선정 이유 : &#10;&#10;• 선정 장소 3 : &#10;  - 토론 내용 및 선정 이유 : "></textarea>
         </div>
 
         <div class="question-block">
-          <div class="question-title">1-3. 학교 및 주변 환경 탐구 계획과 가설 설정</div>
-          <p class="help-text">측정 대상(대기 환경: 교실, 운동장, 급식실, 도로변 / 수환경: 교내 연못, 배수로, 주변 하천 등)을 선정하고, 환경 요인에 따른 가설을 설정하세요.</p>
-          <textarea id="q1_2_text" class="w-full border border-gray-300 rounded-md p-4 min-h-[160px] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200" placeholder="• 탐구 문제:&#10;• 검증할 가설: (예: 차량 통행이 많은 도로변 배수로는 하천보다 pH가 낮고 수온이 높으며 대기 중 미세먼지 및 VOC 농도가 높을 것이다.)&#10;• 측정 경로 및 장소:&#10;• 통제 변인(측정 고도, 센서 안정화 시간, 샘플링 간격 등):"></textarea>
+          <div class="question-title">1-3. 모둠의 탐구 문제에 따른 '가설'을 설정하고, 이를 검증하기 위한 구체적인 탐구 계획을 세워보세요.</div>
+          <p class="help-text">예) 차량 통행이나 환기 여부에 따라 특정 지점의 미세먼지와 VOC 농도가 높을 것이다 / 빗물 배수로는 하천보다 pH가 산성에 가깝고 수온이 높을 것이다.</p>
+          <textarea id="q1_2_text" class="w-full border border-gray-300 rounded-md p-4 min-h-[160px] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200" placeholder="• 검증할 가설 : &#10;• 측정 일정 및 이동 경로 : &#10;• 다르게 할 조건(조작 변인) : &#10;• 같게 할 조건(통제 변인 - 센서 안정화 시간, 측정 높이 등) : &#10;• 안전 유의사항 : "></textarea>
         </div>
       </div>
 
-      <!-- 탭 2 -->
+      <!-- ==================== 탭 2 ==================== -->
       <div id="tab2" class="tab-content">
-        <h2 class="text-xl font-bold text-emerald-900 mb-6 border-l-4 border-emerald-600 pl-3">2. 현장 측정 및 데이터 수집</h2>
+        <h2 class="text-xl font-bold text-emerald-900 mb-6 border-l-4 border-emerald-600 pl-3">2. 현장 관측 및 데이터 수집 (에코 마스터 대시보드 연동)</h2>
         
         <div class="question-block">
-          <div class="question-title">2-1. GPS 기반 데이터 수집 절차 및 센서 운용 방법</div>
-          <p class="help-text">GPS 신호 수신 방식, 수질 센서 및 방수 수온 센서 측정 시 오염 방지 방법, 복합 공기질 센서의 예열(안정화) 과정 등 측정 시 유의사항을 작성하세요.</p>
-          <textarea id="q2_1_text" class="w-full border border-gray-300 rounded-md p-4 min-h-[130px] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200" placeholder="• GPS 좌표 수신 및 기록 방식:&#10;• 공기질 센서 측정 방법:&#10;• 수질(pH) 및 수온 센서 투입 및 세척 방법:&#10;• 측정 시 발생한 돌발 상황 및 해결 과정:"></textarea>
-        </div>
-
-        <div class="question-block">
-          <div class="question-title">2-2. 측정 데이터 종합 기록표</div>
-          <p class="help-text">GPS 좌표와 함께 대기 환경 및 수환경 데이터를 체계적으로 기록하세요. (수질 미측정 장소는 '-' 표기)</p>
-          <textarea id="q2_2_text" class="w-full border border-gray-300 rounded-md p-4 min-h-[220px] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 font-mono text-sm" placeholder="장소 | GPS좌표(위도, 경도) | 미세먼지(PM2.5/PM10) | CO₂(ppm) | VOC(ppb) | pH | 수온(℃) | 대기 온·습도&#10;------------------------------------------------------------------------------------------------&#10;예) 교내연못 | 37.4912, 126.7123 | 18 / 32 ㎍/㎥      | 480      | 110      | 7.2| 18.5    | 21.0℃ / 55%&#10;예) 급식실앞 | 37.4918, 126.7119 | 24 / 45 ㎍/㎥      | 750      | 320      | -  | -       | 23.5℃ / 62%&#10;예) 학교앞하천| 37.4895, 126.7140 | 15 / 28 ㎍/㎥      | 420      | 95       | 6.4| 17.2    | 20.8℃ / 58%"></textarea>
-        </div>
-      </div>
-
-      <!-- 탭 3 -->
-      <div id="tab3" class="tab-content">
-        <h2 class="text-xl font-bold text-emerald-900 mb-6 border-l-4 border-emerald-600 pl-3">3. 공간 시각화 및 결과 분석</h2>
-        
-        <div class="question-block">
-          <div class="question-title">3-1. 공간 환경 지도(GIS) 또는 센서별 상관관계 그래프 이미지</div>
-          <p class="help-text">수집한 GPS 좌표와 측정값을 구글 지도/카카오맵/스프레드시트에 시각화한 환경 지도 또는 변수 간 상관관계 그래프를 첨부하세요.</p>
+          <div class="question-title">2-1. 에코 마스터 대시보드에서 다운로드한 [실시간 대기/수질 오염도 그래프] 이미지를 첨부하세요.</div>
+          <p class="help-text">대시보드 오염도 그래프 우측 상단의 [이미지] 버튼을 눌러 다운받은 PNG 파일을 업로드합니다.</p>
           <div class="mb-4 student-only">
-            <input type="file" id="q3_file" accept="image/*" class="border p-2 w-full rounded bg-white cursor-pointer">
+            <input type="file" id="q2_1_file" accept="image/*" class="border p-2 w-full rounded bg-white cursor-pointer">
           </div>
-          <img id="q3_preview" class="max-w-xl border rounded hidden shadow-sm">
+          <img id="q2_1_preview" class="max-w-xl border rounded hidden shadow-sm">
         </div>
 
         <div class="question-block">
-          <div class="question-title">3-2. 공간적 분포 특성 분석 및 가설 검증</div>
-          <p class="help-text">장소 및 환경 요인에 따라 오염 지표(PM, CO₂, VOC, pH, 수온)가 어떻게 다르게 나타났는지 분석하고, 설정했던 가설의 진위 여부를 과학적으로 해석하세요.</p>
-          <textarea id="q3_text" class="w-full border border-gray-300 rounded-md p-4 min-h-[200px] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200" placeholder="• 오염 물질별 최고/최저 지점 및 환경적 원인 분석:&#10;• 대기 환경(온·습도) 및 수온이 오염도(VOC, 미세먼지, pH)에 미친 영향:&#10;• 가설 검증 결과 (가설 지지 여부 및 타당한 과학적 근거):"></textarea>
+          <div class="question-title">2-2. 에코 마스터 대시보드에서 다운로드한 [실시간 온습도/수온 변화 그래프] 이미지를 첨부하세요.</div>
+          <p class="help-text">대시보드 온습도/수온 그래프 우측 상단의 [이미지] 버튼을 눌러 다운받은 PNG 파일을 업로드합니다.</p>
+          <div class="mb-4 student-only">
+            <input type="file" id="q2_2_file" accept="image/*" class="border p-2 w-full rounded bg-white cursor-pointer">
+          </div>
+          <img id="q2_2_preview" class="max-w-xl border rounded hidden shadow-sm">
+        </div>
+
+        <!-- CSV 첨부 및 자동 변환 영역 -->
+        <div class="question-block">
+          <div class="question-title flex items-center justify-between">
+            <span>2-3. 현장 관측 원본 데이터 첨부 (대시보드 CSV 자동 변환)</span>
+            <span class="text-xs font-normal text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">자동 통계 및 표 렌더링 지원</span>
+          </div>
+          <p class="help-text">에코 마스터 대시보드에서 다운로드한 CSV 파일(`.csv`)을 첨부하면 데이터가 자동으로 표와 통계 요약으로 변환됩니다.</p>
+          
+          <div class="mb-4 student-only">
+            <input type="file" id="csv_file_input" accept=".csv" class="border p-2 w-full rounded bg-white cursor-pointer text-sm">
+          </div>
+          
+          <!-- CSV 미첨부 시 안내문 -->
+          <div id="csv_empty_notice" class="p-8 text-center text-gray-400 bg-gray-50 border border-dashed rounded-lg text-sm">
+            아직 첨부된 CSV 데이터가 없습니다. 대시보드에서 저장한 CSV 파일을 첨부해 주세요.
+          </div>
+
+          <!-- 자동 계산 통계 카드 영역 -->
+          <div id="csv_stats_container" class="hidden mb-4 grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+
+          <!-- 자동 변환 데이터 표 영역 -->
+          <div id="csv_table_wrapper" class="hidden">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold text-gray-700" id="csv_record_count">총 0건의 관측 기록</span>
+              <button onclick="syncCsvToMap()" type="button" class="student-only no-print bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 shadow-sm transition">
+                <i data-lucide="map-pin" class="w-3.5 h-3.5"></i> CSV 좌표 지도에 일괄 등록
+              </button>
+            </div>
+            <div class="csv-table-wrap max-h-64 overflow-y-auto border border-gray-200 rounded-lg shadow-sm">
+              <table class="w-full text-xs text-left border-collapse" id="csv_table">
+                <thead class="bg-gray-100 text-gray-700 sticky top-0" id="csv_thead"></thead>
+                <tbody class="divide-y divide-gray-200 bg-white font-mono" id="csv_tbody"></tbody>
+              </table>
+            </div>
+          </div>
+          
+          <!-- CSV 원본 보관 히든 필드 -->
+          <textarea id="raw_csv_storage" class="hidden"></textarea>
         </div>
       </div>
 
-      <!-- 탭 4 -->
+      <!-- ==================== 탭 3 ==================== -->
+      <div id="tab3" class="tab-content">
+        <h2 class="text-xl font-bold text-emerald-900 mb-6 border-l-4 border-emerald-600 pl-3">3. 공간 환경 지도(GIS) 및 결과 분석</h2>
+        
+        <div class="question-block">
+          <div class="question-title">3-1. 인터랙티브 학교 주변 환경 지도 (Leaflet GIS)</div>
+          <p class="help-text">GPS 센서로 기록된 위치와 주요 측정값을 지도에 표시합니다. 2단계의 CSV에서 자동 등록하거나 직접 입력하여 마커를 추가할 수 있습니다.</p>
+          
+          <!-- 마커 수동 입력 도구 (학생 전용) -->
+          <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-200 mb-4 student-only no-print">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-2">
+              <input type="text" id="map_loc_name" placeholder="장소명 (예: 운동장 조회대)" class="border p-2 rounded text-sm outline-none focus:border-emerald-600">
+              <input type="number" step="any" id="map_lat" placeholder="위도 (예: 37.4912)" class="border p-2 rounded text-sm outline-none focus:border-emerald-600">
+              <input type="number" step="any" id="map_lng" placeholder="경도 (예: 126.7120)" class="border p-2 rounded text-sm outline-none focus:border-emerald-600">
+              <input type="text" id="map_val_summary" placeholder="측정 요약 (예: PM2.5: 35, CO2: 820)" class="border p-2 rounded text-sm outline-none focus:border-emerald-600">
+            </div>
+            <div class="flex justify-end gap-2">
+              <button onclick="clearMapMarkers()" type="button" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-bold transition">마커 전체 초기화</button>
+              <button onclick="addMarkerFromInput()" type="button" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm">
+                <i data-lucide="map-pin" class="w-3.5 h-3.5"></i> 지도에 마커 등록
+              </button>
+            </div>
+          </div>
+
+          <!-- Leaflet 지도 -->
+          <div id="map" class="shadow-inner border border-gray-300"></div>
+          <div id="map_markers_list" class="mt-2 text-xs text-gray-500 font-mono"></div>
+        </div>
+
+        <!-- ★ 교과서 연계: 최고·최저 오염 지점 비교 분석 표 ★ -->
+        <div class="question-block">
+          <div class="question-title">3-2. 학교 주변 오염도 최고·최저 지점 비교 및 원인 분석</div>
+          <p class="help-text">모둠이 중점적으로 탐구한 오염 물질(미세먼지, VOC, CO₂, 수질 pH 등)의 농도가 가장 높았던 곳과 가장 낮았던 곳을 찾고, 그 원인을 주변 환경과 연관 지어 분석하세요.</p>
+          
+          <div class="overflow-x-auto border rounded-lg border-gray-200 mb-3">
+            <table class="w-full text-sm text-left">
+              <thead class="bg-emerald-50 text-emerald-950 font-bold border-b border-gray-200">
+                <tr>
+                  <th class="p-3 w-28 text-center">구분</th>
+                  <th class="p-3 w-48 text-center">장소명 및 측정 수치</th>
+                  <th class="p-3 text-center">그렇게 나타난 환경적 원인 (토론 및 분석)</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200 bg-white">
+                <tr>
+                  <td class="p-3 font-bold text-center bg-rose-50/50 text-rose-800">가장 높은 곳</td>
+                  <td class="p-2">
+                    <input type="text" id="q3_high_loc" class="w-full border p-2 rounded text-sm outline-none focus:border-rose-500" placeholder="예: 정문 앞 도로변 (PM2.5: 48㎍/㎥)">
+                  </td>
+                  <td class="p-2">
+                    <textarea id="q3_high_cause" class="w-full border p-2 rounded text-sm outline-none focus:border-rose-500 min-h-[70px]" placeholder="원인 분석: 등하교 시간대 학부모 차량 및 버스 통행량 급증, 바람길 차단 등"></textarea>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="p-3 font-bold text-center bg-blue-50/50 text-blue-800">가장 낮은 곳</td>
+                  <td class="p-2">
+                    <input type="text" id="q3_low_loc" class="w-full border p-2 rounded text-sm outline-none focus:border-blue-500" placeholder="예: 학교 뒤편 숲길 (PM2.5: 8㎍/㎥)">
+                  </td>
+                  <td class="p-2">
+                    <textarea id="q3_low_cause" class="w-full border p-2 rounded text-sm outline-none focus:border-blue-500 min-h-[70px]" placeholder="원인 분석: 수목에 의한 분진 흡착 및 정화 작용, 차량 출입 통제 등"></textarea>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="question-block">
+          <div class="question-title">3-3. 가설 검증 및 종합 결과 분석</div>
+          <p class="help-text">수집된 데이터와 통계치를 바탕으로 1단계에서 세운 가설의 타당성을 평가하고, 수온/온습도 등 외부 환경 요인이 오염도에 미친 영향을 해석하세요.</p>
+          <textarea id="q3_2_text" class="w-full border border-gray-300 rounded-md p-4 min-h-[180px] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200" placeholder="• 가설 검증 결과 (설정한 가설은 참인가 거짓인가? 구체적인 데이터 근거 서술) : &#10;• 대기 온·습도 및 수온이 오염도 측정값에 미친 영향 : &#10;• 공공기관(에어코리아 등)의 지역 대기 정보와 우리 모둠 측정값과의 비교 : "></textarea>
+        </div>
+      </div>
+
+      <!-- ==================== 탭 4 ==================== -->
       <div id="tab4" class="tab-content">
-        <h2 class="text-xl font-bold text-emerald-900 mb-6 border-l-4 border-emerald-600 pl-3">4. 환경 개선 제안 및 평가</h2>
+        <h2 class="text-xl font-bold text-emerald-900 mb-6 border-l-4 border-emerald-600 pl-3">4. 환경 개선 제안 및 성찰</h2>
         
         <div class="question-block">
           <div class="question-title">4-1. 탐구 결과 기반 학교 및 지역사회 환경 개선 방안 제안</div>
-          <p class="help-text">측정 데이터를 근거로 교내 공기질 정화, 학교 주변 수질 보호, 배출원 차단 등을 위한 실천적·정책적 아이디어를 제안하세요.</p>
-          <textarea id="q4_1_text" class="w-full border border-gray-300 rounded-md p-4 min-h-[160px] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200" placeholder="• 문제 상황 요약 (데이터 근거):&#10;• 구체적인 개선 방안 (과학적 원리 및 실용성 적용):&#10;• 실행 시 기대 효과:"></textarea>
+          <p class="help-text">모둠의 측정 데이터를 근거로 교내 및 주변 환경을 정화하고 오염 물질 유입을 줄일 수 있는 실천적 대안이나 교내 캠페인을 제안하세요.</p>
+          <textarea id="q4_1_text" class="w-full border border-gray-300 rounded-md p-4 min-h-[160px] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200" placeholder="• 해결하고자 하는 문제 상황 (데이터 근거 제시) : &#10;• 구체적인 개선 방안 및 학급/교내 캠페인 계획 : &#10;• 제안의 기대 효과 : "></textarea>
         </div>
 
         <div class="question-block">
-          <div class="question-title">4-2. 탐구 성찰, 오차 분석 및 자기 평가</div>
-          <p class="help-text">센서의 정밀도 한계(예: GPS 오차 범위, pH 센서 교정 상태, 공기질 센서 반응 시간), 개선할 점, 협업 과정에서의 성찰을 서술하세요.</p>
-          <textarea id="q4_2_text" class="w-full border border-gray-300 rounded-md p-4 min-h-[150px] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200" placeholder="• 실험 오차 원인 분석(기기 오차, 환경 요인 등):&#10;• 향후 추가 탐구하고 싶은 주제:&#10;• 모둠 협업 및 탐구 소감:"></textarea>
+          <div class="question-title">4-2. 센서 오차 분석 및 탐구 성찰</div>
+          <p class="help-text">GPS 오차, 센서 반응 지연, 날씨 등 측정의 한계점과 모둠 협력 과정에서 느낀 소감을 서술하세요.</p>
+          <textarea id="q4_2_text" class="w-full border border-gray-300 rounded-md p-4 min-h-[150px] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200" placeholder="• 센서 오차 및 현장 측정 한계점 분석 : &#10;• 추가 탐구해 보고 싶은 새로운 주제 : &#10;• 모둠 협력 활동에 대한 자기 평가 및 느낀 점 : "></textarea>
         </div>
       </div>
+
     </div>
   </div>
 </div>
@@ -230,7 +338,7 @@
     <div class="flex justify-between items-center mb-8 border-b pb-4">
       <div>
         <h1 class="text-3xl font-extrabold text-emerald-900">교사 대시보드 (제출 현황)</h1>
-        <p class="text-sm text-gray-500 mt-1">학생 보고서 실시간 확인 및 A4 PDF 일괄 출력 관리</p>
+        <p class="text-sm text-gray-500 mt-1">학생별 보고서 열람, CSV 변환 데이터 확인 및 A4 PDF 인쇄</p>
       </div>
       <button onclick="location.reload()" class="bg-gray-600 hover:bg-gray-700 text-white px-5 py-2 rounded-md font-bold transition">로그아웃</button>
     </div>
@@ -256,10 +364,251 @@
 </div>
 
 <script>
-  // ★ Google Apps Script 웹 앱 배포 URL 입력 ★
+  lucide.createIcons();
+
+  // ★ Google Apps Script 배포 URL ★
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxqusJj0SXRfT82dW4sfWTnAf8SQft_sxK24RinXAoxVh_XXVkUULCMLRCN-0-tZ8ID/exec";
   let currentUser = {};
+  
+  // Leaflet 지도 인스턴스 및 마커 저장소
+  let mapInstance = null;
+  let mapMarkers = [];
+  let leafletMarkersGroup = null;
 
+  // 파싱된 CSV 데이터 저장소
+  let parsedCsvRows = [];
+
+  function initMap() {
+    if (mapInstance) return;
+    mapInstance = L.map('map').setView([37.4912, 126.7120], 16);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap'
+    }).addTo(mapInstance);
+    leafletMarkersGroup = L.layerGroup().addTo(mapInstance);
+  }
+
+  function addMarkerToMap(item) {
+    if (!mapInstance || !leafletMarkersGroup) return;
+    const marker = L.marker([item.lat, item.lng]).addTo(leafletMarkersGroup);
+    marker.bindPopup(`<b>${item.name}</b><br><span style="font-size:12px; color:#059669;">${item.summary}</span>`).openPopup();
+  }
+
+  function addMarkerFromInput() {
+    const name = document.getElementById('map_loc_name').value.trim();
+    const lat = parseFloat(document.getElementById('map_lat').value);
+    const lng = parseFloat(document.getElementById('map_lng').value);
+    const summary = document.getElementById('map_val_summary').value.trim();
+
+    if (!name || isNaN(lat) || isNaN(lng)) {
+      alert("장소명과 올바른 위도, 경도를 입력하세요.");
+      return;
+    }
+
+    const item = { name, lat, lng, summary };
+    mapMarkers.push(item);
+    addMarkerToMap(item);
+    mapInstance.panTo([lat, lng]);
+    renderMarkersSummaryText();
+
+    document.getElementById('map_loc_name').value = '';
+    document.getElementById('map_lat').value = '';
+    document.getElementById('map_lng').value = '';
+    document.getElementById('map_val_summary').value = '';
+  }
+
+  function clearMapMarkers() {
+    if (confirm("등록된 모든 지도 마커를 삭제하시겠습니까?")) {
+      mapMarkers = [];
+      if (leafletMarkersGroup) leafletMarkersGroup.clearLayers();
+      renderMarkersSummaryText();
+    }
+  }
+
+  function renderMarkersSummaryText() {
+    const div = document.getElementById('map_markers_list');
+    if (mapMarkers.length === 0) {
+      div.innerText = "※ 현재 등록된 관측 마커가 없습니다.";
+    } else {
+      div.innerText = "📍 등록된 지점: " + mapMarkers.map(m => `${m.name}(${m.lat.toFixed(4)}, ${m.lng.toFixed(4)})`).join(' | ');
+    }
+  }
+
+  // ==================== CSV 자동 파싱 및 렌더링 엔진 ====================
+  document.getElementById('csv_file_input').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      let text = event.target.result;
+      if (text.charCodeAt(0) === 0xFEFF) text = text.substr(1); // BOM 제거
+      document.getElementById('raw_csv_storage').value = text;
+      processCsvText(text);
+    };
+    reader.readAsText(file, 'utf-8');
+  });
+
+  function processCsvText(csvText) {
+    if (!csvText || !csvText.trim()) {
+      document.getElementById('csv_empty_notice').classList.remove('hidden');
+      document.getElementById('csv_stats_container').classList.add('hidden');
+      document.getElementById('csv_table_wrapper').classList.add('hidden');
+      return;
+    }
+
+    const lines = csvText.trim().split(/\r?\n/).filter(line => line.trim().length > 0);
+    if (lines.length < 2) return;
+
+    const headers = lines[0].split(',').map(h => h.trim());
+    parsedCsvRows = [];
+
+    const thead = document.getElementById('csv_thead');
+    const tbody = document.getElementById('csv_tbody');
+    thead.innerHTML = '';
+    tbody.innerHTML = '';
+
+    let headRow = '<tr>';
+    headers.forEach(h => { headRow += `<th class="p-2 border font-bold">${h}</th>`; });
+    headRow += '</tr>';
+    thead.innerHTML = headRow;
+
+    // 수치 통계 계산용 컬럼 탐색
+    let pm25Idx = headers.findIndex(h => h.includes('미세먼지') || h.toLowerCase().includes('pm25'));
+    let co2Idx = headers.findIndex(h => h.toLowerCase().includes('co2'));
+    let vocIdx = headers.findIndex(h => h.toLowerCase().includes('voc'));
+    let phIdx = headers.findIndex(h => h.toLowerCase().includes('ph'));
+
+    let stats = {
+      pm25: [], co2: [], voc: [], ph: []
+    };
+
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(',').map(c => c.trim());
+      if (cols.length === headers.length) {
+        parsedCsvRows.push(cols);
+        let tr = '<tr class="hover:bg-emerald-50/50 transition">';
+        cols.forEach(c => { tr += `<td class="p-2 border">${c}</td>`; });
+        tr += '</tr>';
+        tbody.innerHTML += tr;
+
+        if (pm25Idx !== -1 && !isNaN(parseFloat(cols[pm25Idx]))) stats.pm25.push(parseFloat(cols[pm25Idx]));
+        if (co2Idx !== -1 && !isNaN(parseFloat(cols[co2Idx]))) stats.co2.push(parseFloat(cols[co2Idx]));
+        if (vocIdx !== -1 && !isNaN(parseFloat(cols[vocIdx]))) stats.voc.push(parseFloat(cols[vocIdx]));
+        if (phIdx !== -1 && !isNaN(parseFloat(cols[phIdx]))) stats.ph.push(parseFloat(cols[phIdx]));
+      }
+    }
+
+    document.getElementById('csv_record_count').innerText = `총 ${parsedCsvRows.length}건의 관측 기록 수집됨`;
+    renderCsvStatsCards(stats, parsedCsvRows.length);
+
+    document.getElementById('csv_empty_notice').classList.add('hidden');
+    document.getElementById('csv_stats_container').classList.remove('hidden');
+    document.getElementById('csv_table_wrapper').classList.remove('hidden');
+  }
+
+  function calcMetric(arr) {
+    if (arr.length === 0) return null;
+    const min = Math.min(...arr);
+    const max = Math.max(...arr);
+    const avg = (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1);
+    return { min, max, avg };
+  }
+
+  function renderCsvStatsCards(stats, totalCount) {
+    const container = document.getElementById('csv_stats_container');
+    container.innerHTML = '';
+
+    const pm = calcMetric(stats.pm25);
+    const co2 = calcMetric(stats.co2);
+    const voc = calcMetric(stats.voc);
+    const ph = calcMetric(stats.ph);
+
+    if (pm) {
+      container.innerHTML += `
+        <div class="bg-slate-50 border border-slate-200 p-3 rounded-xl">
+          <div class="text-[11px] font-bold text-slate-500">미세먼지 (PM2.5)</div>
+          <div class="text-sm font-extrabold text-slate-800 mt-1">평균 ${pm.avg} <span class="text-[10px] font-normal">µg/m³</span></div>
+          <div class="text-[10px] text-slate-400 mt-0.5">최저 ${pm.min} / 최고 ${pm.max}</div>
+        </div>
+      `;
+    }
+    if (co2) {
+      container.innerHTML += `
+        <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-xl">
+          <div class="text-[11px] font-bold text-emerald-700">이산화탄소 (CO2)</div>
+          <div class="text-sm font-extrabold text-emerald-950 mt-1">평균 ${co2.avg} <span class="text-[10px] font-normal">ppm</span></div>
+          <div class="text-[10px] text-emerald-600 mt-0.5">최저 ${co2.min} / 최고 ${co2.max}</div>
+        </div>
+      `;
+    }
+    if (voc) {
+      container.innerHTML += `
+        <div class="bg-amber-50 border border-amber-200 p-3 rounded-xl">
+          <div class="text-[11px] font-bold text-amber-700">유기화합물 (VOC)</div>
+          <div class="text-sm font-extrabold text-amber-950 mt-1">평균 ${voc.avg} <span class="text-[10px] font-normal">Lv</span></div>
+          <div class="text-[10px] text-amber-600 mt-0.5">최저 ${voc.min} / 최고 ${voc.max}</div>
+        </div>
+      `;
+    }
+    if (ph) {
+      container.innerHTML += `
+        <div class="bg-purple-50 border border-purple-200 p-3 rounded-xl">
+          <div class="text-[11px] font-bold text-purple-700">수질 (pH)</div>
+          <div class="text-sm font-extrabold text-purple-950 mt-1">평균 ${ph.avg}</div>
+          <div class="text-[10px] text-purple-600 mt-0.5">최저 ${ph.min} / 최고 ${ph.max}</div>
+        </div>
+      `;
+    }
+  }
+
+  // CSV에 위도/경도가 있을 경우 지도 마커로 자동 연동
+  function syncCsvToMap() {
+    if (parsedCsvRows.length === 0) return alert("등록할 CSV 데이터가 없습니다.");
+    const raw = document.getElementById('raw_csv_storage').value;
+    const lines = raw.trim().split(/\r?\n/);
+    const headers = lines[0].split(',').map(h => h.trim());
+
+    let latIdx = headers.findIndex(h => h.includes('위도') || h.toLowerCase().includes('lat'));
+    let lngIdx = headers.findIndex(h => h.includes('경도') || h.toLowerCase().includes('lng'));
+    let pmIdx = headers.findIndex(h => h.includes('미세먼지') || h.toLowerCase().includes('pm25'));
+
+    if (latIdx === -1 || lngIdx === -1) {
+      return alert("CSV 헤더에 '위도(lat)', '경도(lng)' 정보가 포함되어 있지 않습니다.");
+    }
+
+    initMap();
+    let count = 0;
+    // 샘플링 간격 적용 (데이터가 많을 경우 적절히 추출)
+    const step = Math.max(1, Math.floor(parsedCsvRows.length / 5));
+    for (let i = 0; i < parsedCsvRows.length; i += step) {
+      const row = parsedCsvRows[i];
+      const lat = parseFloat(row[latIdx]);
+      const lng = parseFloat(row[lngIdx]);
+      if (!isNaN(lat) && !isNaN(lng) && lat > 30 && lng > 120) {
+        let pmVal = pmIdx !== -1 ? `PM2.5: ${row[pmIdx]}` : '';
+        const item = {
+          name: `관측지점 ${count + 1}`,
+          lat: lat,
+          lng: lng,
+          summary: `${pmVal} (시각: ${row[0]})`
+        };
+        mapMarkers.push(item);
+        addMarkerToMap(item);
+        count++;
+      }
+    }
+
+    if (count > 0) {
+      renderMarkersSummaryText();
+      mapInstance.panTo([mapMarkers[mapMarkers.length - 1].lat, mapMarkers[mapMarkers.length - 1].lng]);
+      alert(`${count}개의 관측 좌표가 3단계 공간 환경 지도에 성공적으로 등록되었습니다!`);
+    } else {
+      alert("유효한 GPS 좌표(위도, 경도)를 찾지 못했습니다.");
+    }
+  }
+
+  // Textarea 자동 높이
   document.querySelectorAll('textarea').forEach(el => {
     el.addEventListener('input', function() {
       this.style.height = 'auto';
@@ -298,9 +647,13 @@
     document.getElementById('q1_preview').src = b64;
     document.getElementById('q1_preview').classList.remove('hidden');
   }));
-  document.getElementById('q3_file').addEventListener('change', e => compressImage(e.target.files[0], b64 => {
-    document.getElementById('q3_preview').src = b64;
-    document.getElementById('q3_preview').classList.remove('hidden');
+  document.getElementById('q2_1_file').addEventListener('change', e => compressImage(e.target.files[0], b64 => {
+    document.getElementById('q2_1_preview').src = b64;
+    document.getElementById('q2_1_preview').classList.remove('hidden');
+  }));
+  document.getElementById('q2_2_file').addEventListener('change', e => compressImage(e.target.files[0], b64 => {
+    document.getElementById('q2_2_preview').src = b64;
+    document.getElementById('q2_2_preview').classList.remove('hidden');
   }));
 
   function showLoading(show) { document.getElementById('loading').style.display = show ? 'flex' : 'none'; }
@@ -309,18 +662,24 @@
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
-    event.currentTarget.classList.add('active');
+    document.getElementById('btn-' + tabId).classList.add('active');
     setTimeout(triggerResize, 10);
+
+    if (tabId === 'tab3') {
+      setTimeout(() => {
+        initMap();
+        if (mapInstance) mapInstance.invalidateSize();
+      }, 50);
+    }
   }
 
   function openPwModal(forceChange = false) {
     document.getElementById('pw-modal').classList.remove('hidden');
     document.getElementById('new_pw').value = '';
     document.getElementById('new_pw_confirm').value = '';
-    
     if (forceChange) {
       document.getElementById('pwCancelBtn').classList.add('hidden');
-      document.getElementById('pw-modal-desc').innerText = "초기 비밀번호(1234)를 사용 중입니다. 안전한 보고서 작성을 위해 비밀번호를 변경해 주세요.";
+      document.getElementById('pw-modal-desc').innerText = "초기 비밀번호(1234)를 사용 중입니다. 새 비밀번호로 변경해야 작성할 수 있습니다.";
     } else {
       document.getElementById('pwCancelBtn').classList.remove('hidden');
       document.getElementById('pw-modal-desc').innerText = "새로운 비밀번호를 설정해 주세요.";
@@ -333,7 +692,7 @@
     const pw1 = document.getElementById('new_pw').value;
     const pw2 = document.getElementById('new_pw_confirm').value;
     if (!pw1) return alert("새 비밀번호를 입력하세요.");
-    if (pw1 === '1234') return alert("초기 비밀번호(1234) 외의 비밀번호를 사용하세요.");
+    if (pw1 === '1234') return alert("초기 비밀번호(1234) 외의 다른 비밀번호를 설정하세요.");
     if (pw1 !== pw2) return alert("비밀번호가 일치하지 않습니다.");
     
     showLoading(true);
@@ -341,9 +700,7 @@
       const res = await fetchGAS({ action: 'changePassword', studentId: currentUser.studentId, newPw: pw1 });
       alert(res.message);
       if(res.success) closePwModal();
-    } catch(e) { 
-      alert("비밀번호 변경 중 오류가 발생했습니다."); 
-    }
+    } catch(e) { alert("비밀번호 변경 중 오류가 발생했습니다."); }
     showLoading(false);
   }
 
@@ -364,7 +721,6 @@
     showLoading(true);
     try {
       const res = await fetchGAS({ action: 'login', id: id, pw: pw });
-      
       if (res.success) {
         if (res.role === 'teacher') {
           document.getElementById('login-screen').classList.add('hidden');
@@ -395,15 +751,42 @@
   function populateForm(data) {
     if(data && !data.error) {
       if(data.q1Img) { document.getElementById('q1_preview').src = data.q1Img; document.getElementById('q1_preview').classList.remove('hidden'); }
-      if(data.q3Img) { document.getElementById('q3_preview').src = data.q3Img; document.getElementById('q3_preview').classList.remove('hidden'); }
+      if(data.q2_1_Img) { document.getElementById('q2_1_preview').src = data.q2_1_Img; document.getElementById('q2_1_preview').classList.remove('hidden'); }
+      if(data.q2_2_Img) { document.getElementById('q2_2_preview').src = data.q2_2_Img; document.getElementById('q2_2_preview').classList.remove('hidden'); }
       
       document.getElementById('q1_1_text').value = data.q1_1_Text || '';
       document.getElementById('q1_2_text').value = data.q1_2_Text || '';
-      document.getElementById('q2_1_text').value = data.q2_1_Text || '';
-      document.getElementById('q2_2_text').value = data.q2_2_Text || '';
-      document.getElementById('q3_text').value = data.q3_Text || '';
+      
+      // 최고/최저 분석 데이터 복원
+      document.getElementById('q3_high_loc').value = data.q3_high_loc || '';
+      document.getElementById('q3_high_cause').value = data.q3_high_cause || '';
+      document.getElementById('q3_low_loc').value = data.q3_low_loc || '';
+      document.getElementById('q3_low_cause').value = data.q3_low_cause || '';
+      
+      document.getElementById('q3_2_text').value = data.q3_2_Text || '';
       document.getElementById('q4_1_text').value = data.q4_1_Text || '';
       document.getElementById('q4_2_text').value = data.q4_2_Text || '';
+      
+      // CSV 데이터 복원 및 테이블 렌더링
+      if (data.csvData) {
+        document.getElementById('raw_csv_storage').value = data.csvData;
+        processCsvText(data.csvData);
+      }
+
+      // 지도 마커 복원
+      initMap();
+      if (leafletMarkersGroup) leafletMarkersGroup.clearLayers();
+      mapMarkers = [];
+      if (data.mapData) {
+        try {
+          mapMarkers = JSON.parse(data.mapData);
+          mapMarkers.forEach(m => addMarkerToMap(m));
+          if (mapMarkers.length > 0) {
+            mapInstance.panTo([mapMarkers[0].lat, mapMarkers[0].lng]);
+          }
+        } catch(e) {}
+      }
+      renderMarkersSummaryText();
       setTimeout(triggerResize, 100);
     }
   }
@@ -415,10 +798,15 @@
       q1Img: document.getElementById('q1_preview').src || '',
       q1_1_Text: document.getElementById('q1_1_text').value,
       q1_2_Text: document.getElementById('q1_2_text').value,
-      q2_1_Text: document.getElementById('q2_1_text').value,
-      q2_2_Text: document.getElementById('q2_2_text').value,
-      q3Img: document.getElementById('q3_preview').src || '',
-      q3_Text: document.getElementById('q3_text').value,
+      q2_1_Img: document.getElementById('q2_1_preview').src || '',
+      q2_2_Img: document.getElementById('q2_2_preview').src || '',
+      csvData: document.getElementById('raw_csv_storage').value || '',
+      mapData: JSON.stringify(mapMarkers),
+      q3_high_loc: document.getElementById('q3_high_loc').value,
+      q3_high_cause: document.getElementById('q3_high_cause').value,
+      q3_low_loc: document.getElementById('q3_low_loc').value,
+      q3_low_cause: document.getElementById('q3_low_cause').value,
+      q3_2_Text: document.getElementById('q3_2_text').value,
       q4_1_Text: document.getElementById('q4_1_text').value,
       q4_2_Text: document.getElementById('q4_2_text').value
     };
@@ -482,14 +870,14 @@
     document.querySelectorAll('.student-only').forEach(el => el.classList.add('hidden'));
     document.getElementById('printBtn').classList.remove('hidden');
     document.getElementById('backBtn').classList.remove('hidden');
-    document.querySelectorAll('textarea').forEach(el => el.readOnly = true);
+    document.querySelectorAll('textarea, input[type="text"]').forEach(el => el.readOnly = true);
 
-    document.getElementById('q1_preview').classList.add('hidden');
-    document.getElementById('q3_preview').classList.add('hidden');
-    document.getElementById('q1_preview').src = '';
-    document.getElementById('q3_preview').src = '';
-    
-    document.querySelectorAll('textarea').forEach(el => el.value = '');
+    ['q1_preview', 'q2_1_preview', 'q2_2_preview'].forEach(id => {
+      document.getElementById(id).classList.add('hidden');
+      document.getElementById(id).src = '';
+    });
+    document.querySelectorAll('textarea, input[type="text"]').forEach(el => el.value = '');
+    processCsvText('');
     
     switchTab('tab1');
 
@@ -500,6 +888,10 @@
     } catch(e) {}
     showLoading(false);
   }
+
+  window.onload = function() {
+    initMap();
+  };
 </script>
 </body>
 </html>
